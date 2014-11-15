@@ -27,19 +27,45 @@
 require "./languages.php";
 require "./alfred.php";
 
+/**
+ * Add default translation
+ * When there's no language selectors,
+ * detect if the phrase contains Chinese words and then translate between en and zh-CN
+ *
+ * @author Zeyue Chen
+ * @since 11/15/2014
+ */
 function parseRequest($request)
 {
 	$requestParts = explode(' ', $request);
-	$languageSelector = array_shift($requestParts);
-	$phrase = implode(' ', $requestParts);
+	if (count($requestParts) == 1) {
 
-	$targetLanguage = $languageSelector;
-	$sourceLanguage = 'auto';
+		// no language selector
+		// default translate between(auto <=> zh-CN)
 
-	if (strpos($languageSelector, '>') > 0) {
-		list($sourceLanguage, $targetLanguage) = explode('>', $languageSelector);
-	} elseif (strpos($languageSelector, '<') > 0) {
-		list($targetLanguage, $sourceLanguage) = explode('<', $languageSelector);
+		$phrase = implode(' ', $requestParts);
+		$sourceLanguage = 'auto';	
+		if (preg_match("/[\x7f-\xff]/", $phrase)) {  // check if the pharse contains Chinese words
+			$targetLanguage = "en";
+		}else{ 
+			$targetLanguage = "zh-CN";
+		}
+
+	} else {
+
+		// with language selector
+
+		$languageSelector = array_shift($requestParts);
+		$phrase = implode(' ', $requestParts);
+
+		$targetLanguage = $languageSelector;
+		$sourceLanguage = 'auto';
+
+		if (strpos($languageSelector, '>') > 0) {
+			list($sourceLanguage, $targetLanguage) = explode('>', $languageSelector);
+		} elseif (strpos($languageSelector, '<') > 0) {
+			list($targetLanguage, $sourceLanguage) = explode('<', $languageSelector);
+		}
 	}
 
 	return array($phrase, $sourceLanguage, $targetLanguage);
@@ -78,10 +104,6 @@ function googleTranslate($request)
 	}
 	$xml->setShared('icon', $iconFilename);
 
-	//$stderr = fopen('php://stderr', 'w');
-	//fwrite($stderr, $out);
-	//fclose($stderr);
-	
 	$json = json_decode($out);
 	$sourceLanguage = $json->src;
 
@@ -109,8 +131,6 @@ function googleTranslate($request)
 	} else {
 		$xml->addItem(array('title' => 'No results found'));
 	}
-	
-	// var_dump($xml);
 
 	echo $xml;
 }
